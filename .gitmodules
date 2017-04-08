@@ -1,0 +1,6 @@
+[submodule "fishhook"]
+	path = fishhook
+	url = https://github.com/facebook/fishhook.git
+[submodule "insert_dylib"]
+	path = insert_dylib
+	url = https://github.com/Tyilo/insert_dylib.git
