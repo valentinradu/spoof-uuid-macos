@@ -8,9 +8,12 @@
 
 #import <Foundation/Foundation.h>
 #import <dlfcn.h>
+#import <signal.h>
 #import "fishhook.h"
 #import "UUIDSwitch.h"
 
+
+static volatile NSString* uuid = NULL;
 
 static CFTypeRef (*original_IORegistryEntryCreateCFProperty)(io_registry_entry_t entry,
                                                              CFStringRef key,
@@ -22,11 +25,15 @@ static CFTypeRef replaced_IORegistryEntryCreateCFProperty(io_registry_entry_t en
                                                           CFAllocatorRef allocator,
                                                           IOOptionBits options) {
     if (CFStringCompare(key, CFSTR(kIOPlatformUUIDKey), kCFCompareCaseInsensitive) == 0) {
-        return CFSTR("0FAFE915-8176-461F-AA24-C747EDFF7F1E");
+        return CFBridgingRetain(uuid);
     }
     else {
         return original_IORegistryEntryCreateCFProperty(entry, key, allocator, options);
     }
+}
+
+static void switchUUID(int dummy) {
+    uuid = [[NSUUID UUID] UUIDString];
 }
 
 #pragma mark Dylib Constructor
@@ -34,6 +41,9 @@ static CFTypeRef replaced_IORegistryEntryCreateCFProperty(io_registry_entry_t en
 __attribute__((constructor)) static void init(int argc, const char **argv)
 {
     NSLog(@"Fishhook hook enabled.");
+    
+    uuid = [[NSUUID UUID] UUIDString];
+    signal(SIGUSR1, switchUUID);
     original_IORegistryEntryCreateCFProperty = dlsym(RTLD_DEFAULT, "IORegistryEntryCreateCFProperty");
     if ((rebind_symbols((struct rebinding[1]){{(char *)"IORegistryEntryCreateCFProperty", (void *)replaced_IORegistryEntryCreateCFProperty}}, 1) < 0))
     {
